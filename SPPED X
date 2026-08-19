@@ -1,0 +1,259 @@
+-- รอเกมโหลดสมบูรณ์
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+-- เคลียร์ UI เก่าค้าง
+pcall(function()
+    for _, ui in pairs(game:GetService("CoreGui"):GetChildren()) do
+        if ui.Name == "Rayfield" or ui.Name == "MM2 Role ESP Hub" then
+            ui:Destroy()
+        end
+    end
+end)
+
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "MM2 Premium Hub",
+   LoadingTitle = "Loading MM2 Script...",
+   LoadingSubtitle = "by Mon_Hom16y",
+   ConfigurationSaving = { Enabled = false },
+   Discord = { Enabled = false },
+   KeySystem = false
+})
+
+-- สร้างแท็บเมนู
+local ESPTab = Window:CreateTab("Player ESP", 4483345998)
+local MovementTab = Window:CreateTab("Movement", 4483345998)
+local CombatTab = Window:CreateTab("Combat", 4483345998)
+
+-- ตัวแปรเก็บสถานะ
+_G.ESP = false
+_G.SpeedToggle = false
+_G.WalkSpeedValue = 32
+_G.SheriffAimbot = false
+_G.SpinToggle = false
+_G.SpinSpeedValue = 50
+_G.AutoGrabGun = false
+_G.BackstabTP = false -- ฟังก์ชันวาร์ปไปหลังผู้เล่น
+
+-- =========================================
+-- 1. แท็บ ESP Roles
+-- =========================================
+ESPTab:CreateToggle({
+   Name = "ESP Player Roles (เรืองแสงตามสีบทบาท)",
+   CurrentValue = false,
+   Flag = "RoleESPToggle",
+   Callback = function(Value)
+      _G.ESP = Value
+   end,
+})
+
+-- =========================================
+-- 2. แท็บ Movement
+-- =========================================
+MovementTab:CreateToggle({
+   Name = "เปิดใช้งาน วิ่งเร็ว (Speed Hack)",
+   CurrentValue = false,
+   Flag = "SpeedToggle",
+   Callback = function(Value)
+      _G.SpeedToggle = Value
+      local char = game.Players.LocalPlayer.Character
+      if char and char:FindFirstChild("Humanoid") and not Value then
+          char.Humanoid.WalkSpeed = 16
+      end
+   end,
+})
+
+MovementTab:CreateInput({
+   Name = "ตั้งค่าความเร็วการวิ่ง (WalkSpeed)",
+   PlaceholderText = "ใส่ตัวเลข (เช่น 32, 50, 100)",
+   RemoveTextAfterFocusLost = false,
+   Callback = function(Text)
+      local num = tonumber(Text)
+      if num then _G.WalkSpeedValue = num end
+   end,
+})
+
+MovementTab:CreateToggle({
+   Name = "เปิดใช้งาน หมุนตัว (SpinBot)",
+   CurrentValue = false,
+   Flag = "SpinToggle",
+   Callback = function(Value)
+      _G.SpinToggle = Value
+   end,
+})
+
+MovementTab:CreateInput({
+   Name = "ตั้งค่าความเร็วการหมุน (Spin Speed)",
+   PlaceholderText = "ใส่ตัวเลขความเร็วหมุน (เช่น 50, 100, 200)",
+   RemoveTextAfterFocusLost = false,
+   Callback = function(Text)
+      local num = tonumber(Text)
+      if num then _G.SpinSpeedValue = num end
+   end,
+})
+
+-- =========================================
+-- 3. แท็บ Combat
+-- =========================================
+CombatTab:CreateToggle({
+   Name = "Sheriff Auto Lock Head (ล็อกหัวฆาตกรเมื่อถือปืน)",
+   CurrentValue = false,
+   Flag = "AimbotToggle",
+   Callback = function(Value)
+      _G.SheriffAimbot = Value
+   end,
+})
+
+CombatTab:CreateToggle({
+   Name = "Auto Grab Dropped Gun (วาร์ปไปเก็บปืนเมื่อตำรวจตาย)",
+   CurrentValue = false,
+   Flag = "GrabGunToggle",
+   Callback = function(Value)
+      _G.AutoGrabGun = Value
+   end,
+})
+
+CombatTab:CreateToggle({
+   Name = "Backstab Target TP (วาร์ปไปหลังผู้เล่นเปลี่ยนเป้าเมื่อตาย)",
+   CurrentValue = false,
+   Flag = "BackstabTPToggle",
+   Callback = function(Value)
+      _G.BackstabTP = Value
+   end,
+})
+
+-- =========================================
+-- 4. ระบบการทำงานหลัก (Core Logic)
+-- =========================================
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- ค้นหาฆาตกร
+local function GetMurderer()
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            local backpack = p:FindFirstChild("Backpack")
+            local char = p.Character
+            local hasKnife = (backpack and backpack:FindFirstChild("Knife")) or (char and char:FindFirstChild("Knife"))
+            if hasKnife and char:FindFirstChild("Head") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
+                return char
+            end
+        end
+    end
+    return nil
+end
+
+-- เช็คปืนในมือ
+local function IsHoldingGun()
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("Gun") then
+        return true
+    end
+    return false
+end
+
+-- ค้นหาเป้าหมายผู้เล่นคนอื่นที่ยังไม่ตายสำหรับ Backstab TP
+local function GetNextTarget()
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 and p.Character:FindFirstChild("HumanoidRootPart") then
+            return p.Character
+        end
+    end
+    return nil
+end
+
+-- ลูปการทำงานระบบ Speed, SpinBot, Aimbot, Auto Grab Gun, Backstab TP
+task.spawn(function()
+    while task.wait(0.01) do
+        pcall(function()
+            local char = LocalPlayer.Character
+            if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+            local hrp = char.HumanoidRootPart
+
+            -- ระบบ WalkSpeed
+            if char:FindFirstChild("Humanoid") and _G.SpeedToggle then
+                char.Humanoid.WalkSpeed = _G.WalkSpeedValue
+            end
+
+            -- ระบบ SpinBot
+            if _G.SpinToggle then
+                hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(_G.SpinSpeedValue), 0)
+            end
+
+            -- ระบบ Lock Head (Aimbot)
+            if _G.SheriffAimbot and IsHoldingGun() then
+                local murdererChar = GetMurderer()
+                if murdererChar and murdererChar:FindFirstChild("Head") then
+                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, murdererChar.Head.Position)
+                end
+            end
+
+            -- ระบบ Auto Grab Dropped Gun
+            if _G.AutoGrabGun then
+                local gunDrop = workspace:FindFirstChild("GunDrop", true)
+                if gunDrop and gunDrop:IsA("BasePart") then
+                    hrp.CFrame = gunDrop.CFrame * CFrame.new(0, 1, 0)
+                end
+            end
+
+            -- ระบบ Backstab Target TP (วาร์ปไปหลังผู้เล่นรัวๆ)
+            if _G.BackstabTP then
+                local targetChar = GetNextTarget()
+                if targetChar and targetChar:FindFirstChild("HumanoidRootPart") then
+                    -- วาร์ปไปซ้อนด้านหลังเป้าหมาย 2.5 บล็อก
+                    hrp.CFrame = targetChar.HumanoidRootPart.CFrame * CFrame.new(0, 0, 2.5)
+                end
+            end
+        end)
+    end
+end)
+
+-- ระบบ ESP
+local function GetRoleColor(player)
+    local backpack = player:FindFirstChild("Backpack")
+    local char = player.Character
+
+    local hasKnife = (backpack and backpack:FindFirstChild("Knife")) or (char and char:FindFirstChild("Knife"))
+    local hasGun = (backpack and backpack:FindFirstChild("Gun")) or (char and char:FindFirstChild("Gun"))
+
+    if hasKnife then
+        return Color3.fromRGB(255, 0, 0) -- ฆาตกร = สีแดง
+    elseif hasGun then
+        return Color3.fromRGB(0, 100, 255) -- ตำรวจ = สีน้ำเงิน
+    else
+        return Color3.fromRGB(0, 255, 100) -- ผู้บริสุทธิ์ = สีเขียว
+    end
+end
+
+task.spawn(function()
+    while task.wait(0.5) do
+        if _G.ESP then
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    local color = GetRoleColor(p)
+                    local highlight = p.Character:FindFirstChild("RoleHighlight")
+                    
+                    if not highlight then
+                        highlight = Instance.new("Highlight")
+                        highlight.Name = "RoleHighlight"
+                        highlight.Parent = p.Character
+                    end
+                    
+                    highlight.FillColor = color
+                    highlight.FillTransparency = 0.5
+                    highlight.OutlineColor = color
+                    highlight.OutlineTransparency = 0
+                end
+            end
+        else
+            for _, p in pairs(Players:GetPlayers()) do
+                if p.Character then
+                    local highlight = p.Character:FindFirstChild("RoleHighlight")
+                    if highlight then highlight:Destroy() end
+                end
+            end
+        end
+    end
+end)
