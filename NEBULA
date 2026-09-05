@@ -1,0 +1,7 @@
+-- =========================================================
+-- 🌌 NEBULA SECURITY PROTECTED LOADER
+-- =========================================================
+local _s = "local _={};local function _d(s)local r={}for i=1,#s do r[i]=string.char(s:byte(i)-3)end;return table.concat(r)end;local _c=_d('GhvgGvj!hvu!=gvx...[Protected Payload Data]...');loadstring(_c)()"
+
+-- วิธีใช้งานบน Executor GitHub Raw:
+-- loadstring(_s)()
