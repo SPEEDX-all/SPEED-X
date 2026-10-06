@@ -87,8 +87,8 @@ local B
 if A then
     B=A:CreateWindow{
         Title="SPEED X Hub",
-        Icon="rbxassetid://72957354226500",
-        Author="freescript-BY-Vxorz",
+        Icon="rbxassetid://128200661804264", -- ✅ ไอคอนหลัก
+        Author="Roth", -- ✅ เปลี่ยนเครดิตคนสร้างเป็น Roth แล้ว
         Folder="Boss",
         Size=UDim2.fromOffset(650,400),
         Theme="Dark",
@@ -99,7 +99,7 @@ if A then
     pcall(function()
         B:EditOpenButton({
             Title = "SPEED X Hub",
-            Icon = "rbxassetid://72957354226500",
+            Icon = "rbxassetid://128200661804264", -- ✅ ไอคอนปุ่มย่อ
             CornerRadius = UDim.new(0,16),
             StrokeThickness = 2,
             Color = ColorSequence.new(Color3.fromHex("#1a1a1a"), Color3.fromHex("#8B0000")),
@@ -132,6 +132,90 @@ else
 end
 
 print("[4] Window created")
+
+-- ═══════════════════════════════════════════════════════════════
+-- 🖼️ BACKGROUND IMAGE (แก้ไขใหม่ - ลบพื้นหลังเดิมทั้งหมดแล้วแทนที่ด้วยรูป)
+-- ═══════════════════════════════════════════════════════════════
+task.spawn(function()
+    local bgImageId = "128200661804264" -- ไอดีภาพพื้นหลัง
+    local playerGui = r:WaitForChild("PlayerGui")
+    local targetGui, mainFrame
+
+    -- 1. รอให้ UI ของ WindUI สร้างเสร็จ (ชื่อ ScreenGui คือ "Boss" ตาม Folder)
+    for _ = 1, 20 do
+        task.wait(0.5)
+        targetGui = playerGui:FindFirstChild("Boss")
+        if targetGui then break end
+    end
+
+    if not targetGui then return end
+
+    -- 2. ค้นหา Main Frame ของหน้าต่าง UI
+    for _, desc in ipairs(targetGui:GetDescendants()) do
+        if desc:IsA("TextLabel") and desc.Text == "SPEED X Hub" then
+            local header = desc.Parent
+            if header and header.Parent then
+                mainFrame = header.Parent -- Frame หลักของหน้าต่าง
+            end
+            break
+        end
+    end
+
+    -- ถ้าหาไม่เจอจาก Title ให้หา Frame ที่ใหญ่ที่สุดแทน
+    if not mainFrame then
+        local maxSize = 0
+        for _, desc in ipairs(targetGui:GetDescendants()) do
+            if desc:IsA("Frame") and desc.AbsoluteSize.X > maxSize then
+                maxSize = desc.AbsoluteSize.X
+                mainFrame = desc
+            end
+        end
+    end
+
+    if not mainFrame then return end
+
+    -- 3. ลบพื้นหลังเดิมทั้งหมด (ทำให้โปร่งใส)
+    mainFrame.BackgroundTransparency = 1
+    for _, child in ipairs(mainFrame:GetDescendants()) do
+        if child:IsA("Frame") or child:IsA("CanvasGroup") then
+            -- ถ้าเป็น Frame ขนาดใหญ่ หรือชื่อเกี่ยวกับพื้นหลัง ให้ลบสีออก
+            if child.Name == "Background" or child.Name == "Bg" or child.Name == "Shadow" 
+               or child.Name == "Base" or child.Name == "Container" 
+               or child.AbsoluteSize.X > 300 or child.AbsoluteSize.Y > 300 then
+                child.BackgroundTransparency = 1
+            end
+        elseif child:IsA("ImageLabel") then
+            if child.Name == "Background" or child.Name == "Bg" or child.Name == "Shadow" then
+                child.ImageTransparency = 1
+            end
+        end
+    end
+
+    -- 4. สร้าง ImageLabel สำหรับพื้นหลังใหม่
+    local bg = Instance.new("ImageLabel")
+    bg.Name = "SpeedX_Background"
+    bg.Image = "rbxassetid://" .. bgImageId
+    bg.Size = UDim2.new(1, 0, 1, 0)
+    bg.Position = UDim2.new(0, 0, 0, 0)
+    bg.BackgroundTransparency = 1
+    bg.ZIndex = 0 -- วางไว้ด้านหลังสุด
+    bg.Parent = mainFrame
+
+    -- เพิ่ม UICorner ให้โค้งมนเหมือน UI หลัก
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = bg
+
+    -- 5. ปรับ ZIndex ของทุกอย่างให้อยู่เหนือภาพพื้นหลัง
+    for _, child in ipairs(mainFrame:GetChildren()) do
+        if child ~= bg and child:IsA("GuiObject") then
+            if child.ZIndex <= bg.ZIndex then
+                child.ZIndex = bg.ZIndex + 1
+            end
+        end
+    end
+end)
+-- ═══════════════════════════════════════════════════════════════
 
 local C=B.ConfigManager
 local D
